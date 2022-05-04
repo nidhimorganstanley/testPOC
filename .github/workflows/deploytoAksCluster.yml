@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: sudiptaacrregistry.azurecr.io
+        username: ${{ secrets.acr_sudiptaacrregistry_username }}
+        password: ${{ secrets.acr_sudiptaacrregistry_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/azure-vote" -f  "azure-vote/Dockerfile" -t sudiptaacrregistry.azurecr.io/sudiptaakscluster:${{ github.sha }} --label dockerfile-path=azure-vote/Dockerfile
+        docker push sudiptaacrregistry.azurecr.io/sudiptaakscluster:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_sudiptaakscluster_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep default | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace default`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: default
+        container-registry-url: sudiptaacrregistry.azurecr.io
+        container-registry-username: ${{ secrets.acr_sudiptaacrregistry_username }}
+        container-registry-password: ${{ secrets.acr_sudiptaacrregistry_password }}
+        secret-name: sudiptaakscldockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: default
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          sudiptaacrregistry.azurecr.io/sudiptaakscluster:${{ github.sha }}
+        imagepullsecrets: |
+          sudiptaakscldockerauth
