@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "sudiptaakscluster-6fe0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "sudiptaakscluster-6fe0"
+  template:
+    metadata:
+      labels:
+        app: "sudiptaakscluster-6fe0"
+    spec:
+      containers:
+        - name: "sudiptaakscluster-6fe0"
+          image: "sudiptaacrregistry.azurecr.io/sudiptaakscluster"
+          ports:
+          - containerPort: 80
